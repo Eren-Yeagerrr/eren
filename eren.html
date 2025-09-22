@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Interactive Character Game - Mobile</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            width: 100vw;
+            height: 100vh;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 50%, #0a0a0a 100%);
+            position: relative;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+            touch-action: manipulation;
+        }
+
+        /* Portrait orientation lock message */
+        .orientation-message {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: #000;
+            color: white;
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 20px;
+            font-size: 18px;
+        }
+
+        @media screen and (orientation: landscape) and (max-width: 1024px) {
+            .orientation-message {
+                display: flex;
+                flex-direction: column;
+            }
+            .game-content {
+                display: none;
+            }
+        }
+
+        .game-content {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+
+        /* Character Container */
+        .character-container {
+            position: absolute;
+            top: 15vh;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+        }
+
+        /* Character SVG - Responsive sizing */
+        .character {
+            width: 50vw;
+            max-width: 200px;
+            min-width: 150px;
+            height: auto;
+            transition: all 0.3s ease;
+        }
+
+        /* Slap Animation */
+        @keyframes slapped {
+            0% { transform: rotate(0deg); }
+            20% { transform: rotate(-15deg) translateX(-10px); }
+            40% { transform: rotate(5deg); }
+            60% { transform: rotate(-5deg); }
+            100% { transform: rotate(0deg); }
+        }
+
+        /* Kiss Animation */
+        @keyframes kissed {
+            0% { transform: scale(1); }
+            30% { transform: scale(1.05); }
+            60% { transform: scale(0.95); }
+            100% { transform: scale(1); }
+        }
+
+        /* Blush effect */
+        .blush {
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+
+        .character.slapped {
+            animation: slapped 0.8s ease;
+        }
+
+        .character.kissed {
+            animation: kissed 0.8s ease;
+        }
+
+        .character.kissed .blush {
+            opacity: 0.6;
+        }
+
+        /* Emoji Buttons - Mobile optimized */
+        .emoji-button {
+            position: absolute;
+            width: 20vw;
+            height: 20vw;
+            max-width: 90px;
+            max-height: 90px;
+            min-width: 70px;
+            min-height: 70px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: calc(8vw);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            touch-action: manipulation;
+        }
+
+        @media (min-width: 768px) {
+            .emoji-button {
+                font-size: 40px;
+            }
+        }
+
+        @media (max-width: 767px) {
+            .emoji-button {
+                font-size: clamp(30px, 8vw, 45px);
+            }
+        }
+
+        .emoji-button:active {
+            transform: scale(0.9);
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        #slapBtn {
+            bottom: 10vh;
+            left: 15vw;
+        }
+
+        #kissBtn {
+            bottom: 10vh;
+            right: 15vw;
+        }
+
+        /* Flying emoji animation */
+        .flying-emoji {
+            position: absolute;
+            font-size: clamp(35px, 10vw, 50px);
+            z-index: 20;
+            pointer-events: none;
+        }
+
+        @keyframes flyToLeftCheek {
+            0% {
+                opacity: 1;
+                transform: scale(1);
+            }
+            100% {
+                opacity: 0;
+                transform: scale(0.3);
+            }
+        }
+
+        @keyframes flyToRightCheek {
+            0% {
+                opacity: 1;
+                transform: scale(1);
+            }
+            100% {
+                opacity: 0;
+                transform: scale(0.3);
+            }
+        }
+
+        /* Red mark for slap */
+        .slap-mark {
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .character.slapped .slap-mark {
+            opacity: 0.5;
+            animation: fadeOut 2s ease forwards;
+        }
+
+        @keyframes fadeOut {
+            0% { opacity: 0.5; }
+            100% { opacity: 0; }
+        }
+
+        /* Particle effects */
+        .particle {
+            position: absolute;
+            pointer-events: none;
+            z-index: 25;
+        }
+
+        @keyframes starBurst {
+            0% {
+                opacity: 1;
+                transform: translate(0, 0) scale(0);
+            }
+            50% {
+                opacity: 1;
+                transform: translate(var(--x), var(--y)) scale(1);
+            }
+            100% {
+                opacity: 0;
+                transform: translate(calc(var(--x) * 2), calc(var(--y) * 2)) scale(0);
+            }
+        }
+
+        .heart-particle {
+            color: #ff69b4;
+            font-size: clamp(15px, 4vw, 20px);
+            animation: starBurst 1s ease forwards;
+        }
+
+        .star-particle {
+            color: #ffd700;
+            font-size: clamp(18px, 5vw, 25px);
+            animation: starBurst 0.8s ease forwards;
+        }
+
+        /* Instructions text */
+        .instructions {
+            position: absolute;
+            top: 5vh;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(255, 255, 255, 0.6);
+            text-align: center;
+            font-size: clamp(14px, 3.5vw, 18px);
+            padding: 0 20px;
+        }
+
+        /* Prevent zoom on double tap for iOS */
+        @media (max-width: 767px) {
+            * {
+                touch-action: manipulation;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Orientation Lock Message -->
+    <div class="orientation-message">
+        <div>
+            <div style="font-size: 60px; margin-bottom: 20px;">📱</div>
+            <h2>Please rotate your device</h2>
+            <p>This game is best played in portrait mode!</p>
+        </div>
+    </div>
+
+    <!-- Game Content -->
+    <div class="game-content">
+        <div class="instructions">Tap the buttons below!</div>
+        
+        <div class="character-container">
+            <svg class="character" id="character" viewBox="0 0 200 400">
+                <!-- Body -->
+                <rect x="60" y="200" width="80" height="120" fill="#000000" rx="5"/>
+                
+                <!-- Arms -->
+                <rect x="35" y="210" width="30" height="80" fill="#000000" rx="15" transform="rotate(-10 50 250)"/>
+                <rect x="135" y="210" width="30" height="80" fill="#000000" rx="15" transform="rotate(10 150 250)"/>
+                
+                <!-- Pants -->
+                <rect x="70" y="310" width="60" height="90" fill="#d4b896" rx="3"/>
+                
+                <!-- Legs -->
+                <rect x="75" y="380" width="20" height="20" fill="#d4b896"/>
+                <rect x="105" y="380" width="20" height="20" fill="#d4b896"/>
+                
+                <!-- Shoes -->
+                <ellipse cx="85" cy="395" rx="15" ry="8" fill="#666666"/>
+                <ellipse cx="115" cy="395" rx="15" ry="8" fill="#666666"/>
+                <rect x="70" y="390" width="30" height="10" fill="#ffffff" rx="2"/>
+                <rect x="100" y="390" width="30" height="10" fill="#ffffff" rx="2"/>
+                
+                <!-- Neck -->
+                <rect x="85" y="180" width="30" height="25" fill="#f4c2a1"/>
+                
+                <!-- Head -->
+                <ellipse cx="100" cy="140" rx="45" ry="50" fill="#f4c2a1"/>
+                
+                <!-- Hair -->
+                <path d="M 55 120 Q 50 110 60 105 Q 65 100 70 102 Q 75 95 85 95 Q 90 90 100 90 Q 110 90 115 95 Q 125 95 130 102 Q 135 100 140 105 Q 150 110 145 120" 
+                      fill="#2c2c2c" stroke="none"/>
+                <circle cx="70" cy="115" r="8" fill="#2c2c2c"/>
+                <circle cx="80" cy="110" r="7" fill="#2c2c2c"/>
+                <circle cx="90" cy="108" r="8" fill="#2c2c2c"/>
+                <circle cx="100" cy="107" r="8" fill="#2c2c2c"/>
+                <circle cx="110" cy="108" r="8" fill="#2c2c2c"/>
+                <circle cx="120" cy="110" r="7" fill="#2c2c2c"/>
+                <circle cx="130" cy="115" r="8" fill="#2c2c2c"/>
+                
+                <!-- Glasses -->
+                <circle cx="80" cy="140" r="18" fill="none" stroke="#333333" stroke-width="3"/>
+                <circle cx="120" cy="140" r="18" fill="none" stroke="#333333" stroke-width="3"/>
+                <line x1="98" y1="140" x2="102" y2="140" stroke="#333333" stroke-width="3"/>
+                <line x1="62" y1="140" x2="55" y2="138" stroke="#333333" stroke-width="3"/>
+                <line x1="138" y1="140" x2="145" y2="138" stroke="#333333" stroke-width="3"/>
+                
+                <!-- Eyes -->
+                <ellipse cx="80" cy="140" rx="8" ry="10" fill="#ffffff"/>
+                <ellipse cx="120" cy="140" rx="8" ry="10" fill="#ffffff"/>
+                <circle cx="82" cy="140" r="5" fill="#1a1a1a"/>
+                <circle cx="118" cy="140" r="5" fill="#1a1a1a"/>
+                <circle cx="83" cy="139" r="2" fill="#ffffff"/>
+                <circle cx="119" cy="139" r="2" fill="#ffffff"/>
+                
+                <!-- Nose -->
+                <path d="M 100 150 L 95 160 L 100 162 L 105 160 Z" fill="#e8b097" opacity="0.5"/>
+                
+                <!-- Mouth -->
+                <path d="M 85 170 Q 100 175 115 170" fill="none" stroke="#d4998f" stroke-width="2" stroke-linecap="round"/>
+                
+                <!-- Blush (hidden by default) -->
+                <ellipse class="blush" cx="65" cy="155" rx="12" ry="8" fill="#ff69b4" opacity="0"/>
+                <ellipse class="blush" cx="135" cy="155" rx="12" ry="8" fill="#ff69b4" opacity="0"/>
+                
+                <!-- Slap mark (hidden by default) -->
+                <ellipse class="slap-mark" cx="65" cy="155" rx="15" ry="10" fill="#ff0000" opacity="0"/>
+            </svg>
+        </div>
+
+        <button class="emoji-button" id="slapBtn">👋</button>
+        <button class="emoji-button" id="kissBtn">😘</button>
+    </div>
+
+    <script>
+        const character = document.getElementById('character');
+        const slapBtn = document.getElementById('slapBtn');
+        const kissBtn = document.getElementById('kissBtn');
+
+        // Prevent double-tap zoom on iOS
+        let lastTouchEnd = 0;
+        document.addEventListener('touchend', (e) => {
+            const now = Date.now();
+            if (now - lastTouchEnd <= 300) {
+                e.preventDefault();
+            }
+            lastTouchEnd = now;
+        }, false);
+
+        function createFlyingEmoji(emoji, targetX, targetY, startX, startY) {
+            const flyingEmoji = document.createElement('div');
+            flyingEmoji.className = 'flying-emoji';
+            flyingEmoji.textContent = emoji;
+            flyingEmoji.style.left = startX + 'px';
+            flyingEmoji.style.top = startY + 'px';
+            document.body.appendChild(flyingEmoji);
+
+            // Animate to target position
+            const duration = 600;
+            const startTime = Date.now();
+            
+            function animate() {
+                const elapsed = Date.now() - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                
+                // Ease-in-out curve
+                const easeProgress = progress < 0.5 
+                    ? 2 * progress * progress 
+                    : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+                
+                const currentX = startX + (targetX - startX) * easeProgress;
+                const currentY = startY + (targetY - startY) * easeProgress;
+                
+                flyingEmoji.style.left = currentX + 'px';
+                flyingEmoji.style.top = currentY + 'px';
+                flyingEmoji.style.opacity = 1 - progress * 0.5;
+                flyingEmoji.style.transform = `scale(${1 - progress * 0.5})`;
+                
+                if (progress < 1) {
+                    requestAnimationFrame(animate);
+                } else {
+                    flyingEmoji.remove();
+                }
+            }
+            
+            animate();
+        }
+
+        function createParticles(x, y, type) {
+            for (let i = 0; i < 6; i++) {
+                const particle = document.createElement('div');
+                particle.className = `particle ${type}-particle`;
+                particle.textContent = type === 'heart' ? '💖' : '✨';
+                particle.style.left = x + 'px';
+                particle.style.top = y + 'px';
+                particle.style.setProperty('--x', `${(Math.random() - 0.5) * 100}px`);
+                particle.style.setProperty('--y', `${(Math.random() - 0.5) * 100}px`);
+                document.body.appendChild(particle);
+                
+                setTimeout(() => particle.remove(), 1000);
+            }
+        }
+
+        function handleSlap(e) {
+            e.preventDefault();
+            const btnRect = slapBtn.getBoundingClientRect();
+            const charRect = character.getBoundingClientRect();
+            const targetX = charRect.left + charRect.width * 0.25;
+            const targetY = charRect.top + charRect.height * 0.38;
+            
+            createFlyingEmoji('👋', targetX, targetY, 
+                btnRect.left + btnRect.width / 2 - 25, 
+                btnRect.top + btnRect.height / 2 - 25);
+            
+            setTimeout(() => {
+                character.classList.remove('slapped');
+                void character.offsetWidth;
+                character.classList.add('slapped');
+                createParticles(targetX, targetY, 'star');
+                
+                setTimeout(() => {
+                    character.classList.remove('slapped');
+                }, 2000);
+            }, 550);
+        }
+
+        function handleKiss(e) {
+            e.preventDefault();
+            const btnRect = kissBtn.getBoundingClientRect();
+            const charRect = character.getBoundingClientRect();
+            const targetX = charRect.left + charRect.width * 0.75;
+            const targetY = charRect.top + charRect.height * 0.38;
+            
+            createFlyingEmoji('😘', targetX, targetY, 
+                btnRect.left + btnRect.width / 2 - 25, 
+                btnRect.top + btnRect.height / 2 - 25);
+            
+            setTimeout(() => {
+                character.classList.remove('kissed');
+                void character.offsetWidth;
+                character.classList.add('kissed');
+                createParticles(targetX, targetY, 'heart');
+                
+                setTimeout(() => {
+                    character.classList.remove('kissed');
+                }, 2000);
+            }, 550);
+        }
+
+        // Add both click and touch events for better mobile support
+        slapBtn.addEventListener('click', handleSlap);
+        slapBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            handleSlap(e);
+        });
+
+        kissBtn.addEventListener('click', handleKiss);
+        kissBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            handleKiss(e);
+        });
+    </script>
+</body>
+</html>
